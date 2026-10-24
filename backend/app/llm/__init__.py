@@ -7,6 +7,7 @@ from .base import (
     LLMResponseError,
     LLMUnavailableError,
 )
+from .factory import get_llm_client
 from .types import Finding, Result
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "LLMResponseError",
     "LLMUnavailableError",
     "Result",
+    "get_llm_client",
 ]
