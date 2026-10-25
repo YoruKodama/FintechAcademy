@@ -13,8 +13,15 @@ def _make_stub() -> LLMClient:
     return StubClient()
 
 
+def _make_ollama() -> LLMClient:
+    from .ollama import OllamaClient
+
+    return OllamaClient()
+
+
 _PROVIDERS = {
     "stub": _make_stub,
+    "ollama": _make_ollama,
 }
 
 
