@@ -14,11 +14,11 @@ docker compose up --build
 - API: http://localhost:8000 (проверка: `/health`)
 - Описание API: [openapi.yaml](openapi.yaml), источник правды по контрактам
 
-Модель по умолчанию в режиме заглушки (`LLM_MODE=stub`). Чтобы включить Ollama:
+Модель по умолчанию в режиме заглушки (`LLM_PROVIDER=stub`). Чтобы включить Ollama:
 
 ```bash
 docker compose exec ollama ollama pull qwen2.5:7b-instruct
-# в .env: LLM_MODE=ollama
+# в .env: LLM_PROVIDER=ollama
 ```
 
 ## Структура

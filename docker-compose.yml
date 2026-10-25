@@ -27,7 +27,7 @@ services:
         required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://trainer:change_me@db:5432/trainer}
-      LLM_MODE: ${LLM_MODE:-stub}
+      LLM_PROVIDER: ${LLM_PROVIDER:-stub}
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b-instruct}
     depends_on:
