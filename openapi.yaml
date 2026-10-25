@@ -1,0 +1,210 @@
+openapi: 3.0.3
+info:
+  title: AI-тренажёр собеседований
+  version: 0.1.0
+  description: >
+    API тренажёра собеседований для сотрудников банка. Это источник правды по контрактам:
+    менять схемы можно только по согласованию с командой.
+servers:
+  - url: http://localhost:8000
+paths:
+  /scenarios:
+    get:
+      summary: Список сценариев
+      operationId: listScenarios
+      responses:
+        "200":
+          description: Список сценариев
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ScenarioShort" }
+  /scenarios/{id}:
+    get:
+      summary: Сценарий целиком (условие, шаблон кода, вопросы)
+      operationId: getScenario
+      parameters:
+        - { $ref: "#/components/parameters/IdPath" }
+      responses:
+        "200":
+          description: Сценарий
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Scenario" }
+        "404": { $ref: "#/components/responses/Error" }
+  /attempts:
+    post:
+      summary: Начать прохождение
+      operationId: startAttempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AttemptStart" }
+      responses:
+        "201":
+          description: Прохождение создано
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Attempt" }
+        "404": { $ref: "#/components/responses/Error" }
+    get:
+      summary: Список прохождений (для руководителя)
+      operationId: listAttempts
+      parameters:
+        - name: scenario_id
+          in: query
+          required: false
+          description: Фильтр по сценарию
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Список прохождений
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AttemptSummary" }
+  /attempts/{id}/submit:
+    post:
+      summary: Отправить код и ответы на вопросы
+      description: >
+        Цепочка: обезличивание, анализ кода и безопасный запуск, модель, оценщик баллов,
+        запись результата в БД.
+      operationId: submitAttempt
+      parameters:
+        - { $ref: "#/components/parameters/IdPath" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Submission" }
+      responses:
+        "200":
+          description: Прохождение завершено, результат готов
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Attempt" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /attempts/{id}:
+    get:
+      summary: Прохождение и результат
+      operationId: getAttempt
+      parameters:
+        - { $ref: "#/components/parameters/IdPath" }
+      responses:
+        "200":
+          description: Прохождение; result заполнен, когда status = done
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Attempt" }
+        "404": { $ref: "#/components/responses/Error" }
+components:
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+  responses:
+    Error:
+      description: Ошибка
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: not_found }
+            message: { type: string, description: Текст по-русски, example: Сценарий не найден }
+    ScenarioShort:
+      type: object
+      required: [id, title]
+      properties:
+        id: { type: integer }
+        title: { type: string, example: Расчёт комиссии за перевод }
+    Scenario:
+      type: object
+      required: [id, title, description, code_template, questions]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string, description: Условие задачи }
+        code_template: { type: string, description: Шаблон кода на Python }
+        questions:
+          type: array
+          description: 2-3 вопроса
+          minItems: 2
+          maxItems: 3
+          items: { type: string }
+    AttemptStart:
+      type: object
+      required: [scenario_id]
+      properties:
+        scenario_id: { type: integer }
+    Submission:
+      type: object
+      required: [code, answers]
+      properties:
+        code: { type: string, description: Решение кандидата }
+        answers:
+          type: array
+          description: Ответы на вопросы сценария, в том же порядке
+          items: { type: string }
+    Finding:
+      type: object
+      required: [code, severity, line, message]
+      properties:
+        code: { type: string, example: float_money }
+        severity: { type: string, enum: [low, medium, high] }
+        line: { type: integer, minimum: 1 }
+        message: { type: string, description: По-русски }
+    Result:
+      type: object
+      required: [total, criteria, feedback, findings]
+      properties:
+        total: { type: integer, minimum: 0, maximum: 100 }
+        criteria:
+          type: object
+          required: [correctness, code_quality, safety, explanation]
+          properties:
+            correctness: { type: integer, minimum: 0, maximum: 25 }
+            code_quality: { type: integer, minimum: 0, maximum: 25 }
+            safety: { type: integer, minimum: 0, maximum: 25 }
+            explanation: { type: integer, minimum: 0, maximum: 25 }
+        feedback: { type: string, maxLength: 1200, description: Разбор по-русски }
+        findings:
+          type: array
+          items: { $ref: "#/components/schemas/Finding" }
+    Attempt:
+      type: object
+      required: [id, scenario_id, status, started_at]
+      properties:
+        id: { type: integer }
+        scenario_id: { type: integer }
+        status: { type: string, enum: [started, done] }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time, nullable: true }
+        result:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Result"
+    AttemptSummary:
+      type: object
+      required: [id, scenario_id, scenario_title, status, started_at]
+      properties:
+        id: { type: integer }
+        scenario_id: { type: integer }
+        scenario_title: { type: string }
+        status: { type: string, enum: [started, done] }
+        started_at: { type: string, format: date-time }
+        total: { type: integer, minimum: 0, maximum: 100, nullable: true }
