@@ -1,0 +1,35 @@
+[
+  {
+    "title": "Расчёт комиссии за перевод",
+    "description": "Напишите функцию calc_fee(amount): amount — сумма перевода в рублях (Decimal, int или строка).\n\n- комиссия 1,5 % от суммы, но не меньше 30 ₽ и не больше 3000 ₽;\n- результат — Decimal, округление до копеек по правилу ROUND_HALF_UP;\n- сумма <= 0 или не число — ValueError.",
+    "code_template": "from decimal import Decimal\n\n\ndef calc_fee(amount):\n    \"\"\"Вернуть комиссию за перевод в рублях.\"\"\"\n    raise NotImplementedError\n",
+    "questions": [
+      "Почему для денег нельзя использовать float?",
+      "Как вы проверяли граничные значения (минимум и максимум комиссии)?",
+      "Что изменится, если комиссия будет зависеть от тарифа клиента?"
+    ],
+    "tests": "from decimal import Decimal\nassert calc_fee('1000') == Decimal('30.00')\nassert calc_fee('10000') == Decimal('150.00')\nassert calc_fee('12345.67') == Decimal('185.19')\nassert calc_fee('200000') == Decimal('3000.00')\n"
+  },
+  {
+    "title": "Проверка и маскирование номера карты",
+    "description": "Напишите функции is_valid_card(number: str) -> bool и mask_card(number: str) -> str.\n\n- пробелы и дефисы игнорируются; допустимы только цифры, длина 16-19;\n- проверка контрольной суммы по алгоритму Луна;\n- mask_card возвращает '**** **** **** 1234' (последние 4 цифры), для невалидного номера — ValueError.",
+    "code_template": "def is_valid_card(number: str) -> bool:\n    \"\"\"Проверить номер карты по алгоритму Луна.\"\"\"\n    raise NotImplementedError\n\n\ndef mask_card(number: str) -> str:\n    \"\"\"Вернуть номер, скрыв все цифры кроме последних четырёх.\"\"\"\n    raise NotImplementedError\n",
+    "questions": [
+      "Зачем нужен алгоритм Луна и от каких ошибок он не защищает?",
+      "Почему полный номер карты нельзя писать в логи?",
+      "Как бы вы протестировали эти функции?"
+    ],
+    "tests": "assert is_valid_card('4111 1111 1111 1111') is True\nassert is_valid_card('4111 1111 1111 1112') is False\nassert mask_card('4111-1111-1111-1111') == '**** **** **** 1111'\n"
+  },
+  {
+    "title": "Баланс по выписке и крупные операции",
+    "description": "Напишите функцию process_statement(opening_balance, operations, limit=Decimal('100000')).\n\n- operations — список словарей {\"id\": str, \"type\": \"in\" | \"out\", \"amount\": str};\n- верните кортеж (итоговый баланс: Decimal, список id расходных операций с суммой больше limit);\n- неизвестный type, отрицательная или нечисловая сумма — ValueError;\n- исходный список операций не изменяйте.",
+    "code_template": "from decimal import Decimal\n\n\ndef process_statement(opening_balance, operations, limit=Decimal(\"100000\")):\n    \"\"\"Посчитать итоговый баланс и найти крупные расходы.\"\"\"\n    raise NotImplementedError\n",
+    "questions": [
+      "Почему порог limit лучше передавать параметром, а не зашивать в код?",
+      "Что делать, если одна операция в выписке некорректна: падать целиком или пропускать?",
+      "Как бы вы обработали выписку на миллион операций?"
+    ],
+    "tests": "from decimal import Decimal\nops = [{'id': 'a', 'type': 'in', 'amount': '500'}, {'id': 'b', 'type': 'out', 'amount': '200000'}]\nbalance, big = process_statement(Decimal('1000000'), ops)\nassert balance == Decimal('800500')\nassert big == ['b']\n"
+  }
+]
