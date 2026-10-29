@@ -39,13 +39,20 @@ def _attempt_or_404(session: Session, attempt_id: int) -> Attempt:
     return attempt
 
 
+def _utc(value: datetime | None) -> datetime | None:
+    """Привести время к UTC: SQLite отдаёт его без часового пояса."""
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
 def _attempt_out(attempt: Attempt) -> schemas.Attempt:
     return schemas.Attempt(
         id=attempt.id,
         scenario_id=attempt.scenario_id,
         status=attempt.status,
-        started_at=attempt.started_at,
-        finished_at=attempt.finished_at,
+        started_at=_utc(attempt.started_at),
+        finished_at=_utc(attempt.finished_at),
         result=schemas.Result.model_validate(attempt.result) if attempt.result else None,
     )
 
@@ -94,7 +101,7 @@ def list_attempts(
             scenario_id=row.scenario_id,
             scenario_title=row.scenario.title,
             status=row.status,
-            started_at=row.started_at,
+            started_at=_utc(row.started_at),
             total=row.result["total"] if row.result else None,
         )
         for row in session.scalars(query)

@@ -158,3 +158,15 @@ def test_list_attempts_and_filter(client):
 
 def test_unknown_route_uses_error_format(client):
     _error(client.get("/nope"), 404, "not_found")
+
+
+def test_dates_have_timezone(client):
+    attempt = _start(client)
+    client.post(
+        f"/attempts/{attempt['id']}/submit", json={"code": CODE, "answers": _answers(client)}
+    )
+    row = client.get("/attempts").json()[0]
+    full = client.get(f"/attempts/{attempt['id']}").json()
+    assert row["started_at"].endswith("Z")
+    assert full["started_at"].endswith("Z")
+    assert full["finished_at"].endswith("Z")
