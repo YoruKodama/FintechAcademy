@@ -19,9 +19,16 @@ def _make_ollama() -> LLMClient:
     return OllamaClient()
 
 
+def _make_gigachat() -> LLMClient:
+    from .gigachat import GigaChatClient
+
+    return GigaChatClient()
+
+
 _PROVIDERS = {
     "stub": _make_stub,
     "ollama": _make_ollama,
+    "gigachat": _make_gigachat,
 }
 
 
