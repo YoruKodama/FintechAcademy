@@ -84,10 +84,9 @@ def test_cyrillic_email_is_masked():
     assert "test@почта.рф" not in masked("Пишите на test@почта.рф")
 
 
-# --- ФИО и банковские ПДн (дефекты) ----------------------------------------
+# --- ФИО (исправлено) и банковские ПДн (дефекты) ----------------------------
 
 
-@pytest.mark.xfail(reason="Дефект critical: ФИО не обезличиваются", strict=True)
 @pytest.mark.parametrize("name", ["Иванов Иван Иванович", "Петров П.П.", "Сидорова Анна"])
 def test_full_name_is_masked(name):
     assert name not in masked(f"Клиент {name} оформил перевод.")

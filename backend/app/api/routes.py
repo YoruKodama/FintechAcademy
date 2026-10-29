@@ -130,7 +130,13 @@ def submit_attempt(
         )
 
     result = schemas.Result.model_validate(
-        chain.run_chain(body.code, body.answers, attempt.scenario.tests)
+        chain.run_chain(
+            body.code,
+            body.answers,
+            attempt.scenario.tests,
+            attempt.scenario.questions,
+            attempt.scenario.description,
+        )
     )
     attempt.code = body.code
     attempt.answers = body.answers

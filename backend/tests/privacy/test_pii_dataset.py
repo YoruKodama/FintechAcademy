@@ -20,7 +20,7 @@ PII_DIR = Path(__file__).resolve().parents[3] / "testdata" / "pii"
 EXPECTED = json.loads((PII_DIR / "expected.json").read_text(encoding="utf-8"))
 
 # Виды ПДн, которые anonymize() сейчас не маскирует (дефекты в Issues).
-KNOWN_GAPS = {"fio", "account", "inn", "snils", "passport"}
+KNOWN_GAPS = {"account", "inn", "snils", "passport"}
 # Конкретные значения, которые сейчас не маскируются: (файл, значение).
 KNOWN_VALUE_GAPS = {
     ("pii_10.txt", "ivanov@почта.рф"),  # кириллический домен

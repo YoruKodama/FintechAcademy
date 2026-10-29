@@ -73,11 +73,24 @@ def _stub_pipeline(code: str, answers: list[str], findings: list[dict]) -> dict:
     }
 
 
-def run_chain(code: str, answers: list[str], tests: str | None = None) -> dict:
-    """Выполнить цепочку проверки и вернуть Result в виде словаря."""
+def run_chain(
+    code: str,
+    answers: list[str],
+    tests: str | None = None,
+    questions: list[str] | None = None,
+    task: str | None = None,
+) -> dict:
+    """Выполнить цепочку проверки и вернуть Result в виде словаря.
+
+    Анализ кода и запуск на тестах, затем оценщик Ангелины: он сам обезличивает текст,
+    вызывает модель и считает баллы. Если оценщик не импортируется, работает заглушка.
+    """
     findings = analyze_code(code, tests)
     try:
-        from app.pipeline import run_pipeline
+        from app.scoring.pipeline import evaluate_solution
     except ImportError:
         return _stub_pipeline(code, answers, findings)
-    return dict(run_pipeline(code, answers, findings))
+    result = evaluate_solution(
+        get_llm_client(), code, findings, questions or [], answers, task=task
+    )
+    return dict(result)

@@ -1,13 +1,27 @@
-"""Тесты цепочки submit: порядок шагов, обезличивание, подключение модулей Юры и Ангелины."""
-
-import sys
-import types
+"""Тесты цепочки submit: анализ кода, обезличивание, оценщик, запуск в песочнице."""
 
 import pytest
 
 from app.api import chain
 
 CODE = "def f():\n    return 1\n"
+VALIDATED = "def f(a):\n    if a < 0:\n        raise ValueError\n    return a\n"
+FLOAT_CODE = "def f(a):\n    return a * 0.5\n"
+
+MODEL_JSON = (
+    '{"criteria": {"correctness": 20, "code_quality": 18, "safety": 22, "explanation": 15}, '
+    '"feedback": "Разбор."}'
+)
+
+
+class RecordingClient:
+    def __init__(self, answer=MODEL_JSON):
+        self.answer = answer
+        self.prompts = []
+
+    def complete(self, system, user, **kwargs):
+        self.prompts.append(user)
+        return self.answer
 
 
 @pytest.fixture(autouse=True)
@@ -16,19 +30,26 @@ def _stub_provider(monkeypatch):
 
 
 def test_chain_anonymizes_before_model(monkeypatch):
-    seen = {}
+    client = RecordingClient()
+    monkeypatch.setattr(chain, "get_llm_client", lambda: client)
+    code = "# звоните +7 921 555-12-34\n" + CODE
+    result = chain.run_chain(code, ["почта a.b@example.ru"], questions=["Почему?"])
 
-    class FakeClient:
-        def complete(self, system, user, **kwargs):
-            seen["prompt"] = user
-            return "Разбор."
-
-    monkeypatch.setattr(chain, "get_llm_client", lambda: FakeClient())
-    result = chain.run_chain("# звоните +7 921 555-12-34\n" + CODE, ["почта a.b@example.ru"])
-
-    assert "555-12-34" not in seen["prompt"]
-    assert "a.b@example.ru" not in seen["prompt"]
+    sent = "\n".join(client.prompts)
+    assert "555-12-34" not in sent
+    assert "a.b@example.ru" not in sent
     assert "Разбор." in result["feedback"]
+    assert 0 <= result["total"] <= 100
+
+
+def test_chain_passes_questions_and_task_to_model(monkeypatch):
+    client = RecordingClient()
+    monkeypatch.setattr(chain, "get_llm_client", lambda: client)
+    chain.run_chain(CODE, ["ответ"], questions=["Почему float плох?"], task="Посчитать комиссию")
+
+    sent = "\n".join(client.prompts)
+    assert "Почему float плох?" in sent
+    assert "Посчитать комиссию" in sent
 
 
 def test_chain_model_error_does_not_fail(monkeypatch):
@@ -37,38 +58,29 @@ def test_chain_model_error_does_not_fail(monkeypatch):
             raise chain.LLMError("нет связи")
 
     monkeypatch.setattr(chain, "get_llm_client", lambda: BrokenClient())
-    result = chain.run_chain(CODE, ["ответ"])
-    assert "недоступна" in result["feedback"]
+    result = chain.run_chain(CODE, ["ответ"], questions=["Вопрос"])
+    assert "не удалось" in result["feedback"].lower()
     assert 0 <= result["total"] <= 100
 
 
-def test_chain_uses_analyzer_and_pipeline_when_present(monkeypatch):
-    finding = {"code": "FLOAT_MONEY", "severity": "high", "line": 1, "message": "float для денег"}
-    calls = []
+def test_chain_broken_json_does_not_fail(monkeypatch):
+    monkeypatch.setattr(chain, "get_llm_client", lambda: RecordingClient("это не JSON"))
+    result = chain.run_chain(CODE, ["ответ"], questions=["Вопрос"])
+    assert 0 <= result["total"] <= 100
+    assert result["feedback"]
 
-    analysis = types.ModuleType("app.analysis")
-    analysis.analyze = lambda code: calls.append("analyze") or [finding]
-    analysis.run_tests = lambda code, tests: {"status": "passed", "output": ""}
-    pipeline = types.ModuleType("app.pipeline")
 
-    def run_pipeline(code, answers, findings):
-        calls.append(("pipeline", findings))
-        return {
-            "total": 77,
-            "criteria": {"correctness": 20, "code_quality": 19, "safety": 19, "explanation": 19},
-            "feedback": "Готово.",
-            "findings": findings,
-        }
+def test_chain_findings_reach_result_and_lower_safety(monkeypatch):
+    monkeypatch.setattr(chain, "get_llm_client", lambda: RecordingClient())
+    clean = chain.run_chain(VALIDATED, ["ок"])
+    dirty = chain.run_chain(FLOAT_CODE, ["ок"])
+    assert {item["code"] for item in dirty["findings"]} >= {"FLOAT_MONEY"}
+    assert dirty["criteria"]["safety"] < clean["criteria"]["safety"]
 
-    pipeline.run_pipeline = run_pipeline
-    monkeypatch.setitem(sys.modules, "app.analysis", analysis)
-    monkeypatch.setitem(sys.modules, "app.pipeline", pipeline)
 
-    result = chain.run_chain(CODE, ["ответ"])
-
-    assert calls == ["analyze", ("pipeline", [finding])]
-    assert result["total"] == 77
-    assert result["findings"] == [finding]
+def test_chain_works_with_stub_provider():
+    result = chain.run_chain(CODE, ["ответ"], questions=["Вопрос"])
+    assert set(result) == {"total", "criteria", "feedback", "findings"}
 
 
 def test_stub_total_drops_with_findings():
@@ -95,8 +107,7 @@ def test_sandbox_result_becomes_findings(monkeypatch, status, expected):
 
     monkeypatch.setenv("SANDBOX_ENABLED", "1")
     monkeypatch.setattr(analysis, "run_tests", _fake_run(status))
-    code = "def f():\n    return 1\n"
-    found = chain.analyze_code(code, "assert f() == 1")
+    found = chain.analyze_code(CODE, "assert f() == 1")
     assert [item["code"] for item in found] == expected
 
 
@@ -109,4 +120,4 @@ def test_sandbox_is_off_by_default(monkeypatch):
         raise AssertionError("песочница не должна запускаться")
 
     monkeypatch.setattr(analysis, "run_tests", boom)
-    assert chain.analyze_code("def f():\n    return 1\n", "assert f() == 1") == []
+    assert chain.analyze_code(CODE, "assert f() == 1") == []

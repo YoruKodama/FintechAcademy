@@ -1,14 +1,14 @@
 """Загрузка текстов промптов из backend/app/llm/prompts/*.md."""
 
 import re
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 _CRITERIA_PLACEHOLDER = "{{CRITERIA}}"
 
 
-@lru_cache(maxsize=None)
+@cache
 def load_prompt(name: str) -> str:
     """Прочитать промпт по имени файла без расширения.
 
