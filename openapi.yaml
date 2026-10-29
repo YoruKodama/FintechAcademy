@@ -164,7 +164,7 @@ components:
       type: object
       required: [code, severity, line, message]
       properties:
-        code: { type: string, example: float_money }
+        code: { type: string, example: FLOAT_MONEY }
         severity: { type: string, enum: [low, medium, high] }
         line: { type: integer, minimum: 1 }
         message: { type: string, description: По-русски }
