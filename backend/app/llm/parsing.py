@@ -36,7 +36,7 @@ def _extract_json(raw: str) -> str:
 
 
 def _to_score(key: str, value: object) -> int:
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
         raise LLMResponseError(f"балл за {key} должен быть числом")
     try:
         number = float(value)
