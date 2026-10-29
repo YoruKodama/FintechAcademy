@@ -1,0 +1,6 @@
+def mask_card(number: str) -> str:
+    """Маскирует номер карты, например 4111 1122 2233 3347 -> **** **** **** 3347."""
+    digits = number.replace(' ', '')
+    return '**** **** **** ' + digits[-4:]
+
+# автор: Белов Дмитрий, dmitry.belov@example.ru

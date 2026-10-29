@@ -1,0 +1,3 @@
+Логи из прода (обезличить!):
+2024-03-15 10:22:01 INFO transfer from=4111112222333347 to=2200001234567891 amount=1000000 user_phone=+7 903 555 66 77
+2024-03-15 10:22:02 ERROR limit exceeded for user=petrov.sergey@example.com
