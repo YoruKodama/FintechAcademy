@@ -48,6 +48,7 @@ def test_chain_uses_analyzer_and_pipeline_when_present(monkeypatch):
 
     analysis = types.ModuleType("app.analysis")
     analysis.analyze = lambda code: calls.append("analyze") or [finding]
+    analysis.run_tests = lambda code, tests: {"status": "passed", "output": ""}
     pipeline = types.ModuleType("app.pipeline")
 
     def run_pipeline(code, answers, findings):
@@ -79,3 +80,33 @@ def test_stub_total_drops_with_findings():
     dirty = chain._stub_pipeline(CODE, ["a"], findings)
     assert dirty["total"] < clean["total"]
     assert all(0 <= value <= 25 for value in dirty["criteria"].values())
+
+
+def _fake_run(status):
+    return lambda code, tests: {"status": status, "output": "AssertionError"}
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [("failed", ["TESTS_FAILED"]), ("timeout", ["TIMEOUT"]), ("passed", []), ("unavailable", [])],
+)
+def test_sandbox_result_becomes_findings(monkeypatch, status, expected):
+    import app.analysis as analysis
+
+    monkeypatch.setenv("SANDBOX_ENABLED", "1")
+    monkeypatch.setattr(analysis, "run_tests", _fake_run(status))
+    code = "def f():\n    return 1\n"
+    found = chain.analyze_code(code, "assert f() == 1")
+    assert [item["code"] for item in found] == expected
+
+
+def test_sandbox_is_off_by_default(monkeypatch):
+    import app.analysis as analysis
+
+    monkeypatch.delenv("SANDBOX_ENABLED", raising=False)
+
+    def boom(code, tests):
+        raise AssertionError("песочница не должна запускаться")
+
+    monkeypatch.setattr(analysis, "run_tests", boom)
+    assert chain.analyze_code("def f():\n    return 1\n", "assert f() == 1") == []

@@ -89,7 +89,7 @@ def test_submit_returns_result(client):
     assert set(result["criteria"]) == {"correctness", "code_quality", "safety", "explanation"}
     assert all(0 <= value <= 25 for value in result["criteria"].values())
     assert result["feedback"]
-    assert result["findings"] == []
+    assert [item["code"] for item in result["findings"]] == ["NO_INPUT_VALIDATION"]
 
 
 def test_submit_empty_code(client):

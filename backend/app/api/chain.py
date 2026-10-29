@@ -5,6 +5,7 @@
 """
 
 import logging
+import os
 
 from app.llm import LLMError, get_llm_client
 from app.privacy import anonymize
@@ -15,13 +16,36 @@ STUB_NOTE = "Оценщик ещё не подключён: показан пр�
 SYSTEM_PROMPT = "Ты ревьюер кода. Отвечай по-русски."
 
 
-def analyze_code(code: str) -> list[dict]:
-    """Найти замечания в коде. Пока анализатора нет, возвращает пустой список."""
-    try:
-        from app.analysis import analyze
-    except ImportError:
-        return []
-    return list(analyze(code))
+def analyze_code(code: str, tests: str | None = None) -> list[dict]:
+    """Найти замечания в коде и, если запуск включён, добавить итог прогона на тестах задачи.
+
+    Запуск в контейнере включается переменной SANDBOX_ENABLED=1. Упавшие тесты и превышение
+    лимита времени превращаются в замечания TESTS_FAILED и TIMEOUT.
+    """
+    from app.analysis import analyze, run_tests
+
+    findings = list(analyze(code))
+    if tests and os.getenv("SANDBOX_ENABLED") == "1":
+        run = run_tests(code, tests)
+        if run["status"] == "failed":
+            findings.append(
+                {
+                    "code": "TESTS_FAILED",
+                    "severity": "high",
+                    "line": 1,
+                    "message": f"Решение не прошло проверки задачи. {run['output']}"[:300],
+                }
+            )
+        elif run["status"] == "timeout":
+            findings.append(
+                {
+                    "code": "TIMEOUT",
+                    "severity": "high",
+                    "line": 1,
+                    "message": "Решение превысило лимит времени выполнения.",
+                }
+            )
+    return findings
 
 
 def _stub_pipeline(code: str, answers: list[str], findings: list[dict]) -> dict:
@@ -49,9 +73,9 @@ def _stub_pipeline(code: str, answers: list[str], findings: list[dict]) -> dict:
     }
 
 
-def run_chain(code: str, answers: list[str]) -> dict:
+def run_chain(code: str, answers: list[str], tests: str | None = None) -> dict:
     """Выполнить цепочку проверки и вернуть Result в виде словаря."""
-    findings = analyze_code(code)
+    findings = analyze_code(code, tests)
     try:
         from app.pipeline import run_pipeline
     except ImportError:

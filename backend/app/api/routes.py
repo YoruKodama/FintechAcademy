@@ -122,7 +122,9 @@ def submit_attempt(
             422, "wrong_answers_count", "Число ответов не совпадает с числом вопросов сценария."
         )
 
-    result = schemas.Result.model_validate(chain.run_chain(body.code, body.answers))
+    result = schemas.Result.model_validate(
+        chain.run_chain(body.code, body.answers, attempt.scenario.tests)
+    )
     attempt.code = body.code
     attempt.answers = body.answers
     attempt.result = result.model_dump()
