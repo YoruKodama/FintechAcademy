@@ -18,6 +18,15 @@ RULES: dict[str, tuple[str, int]] = {
     "HARDCODED_SECRET": ("safety", 12),
     "BARE_EXCEPT": ("code_quality", 4),
     "SYNTAX_ERROR": ("correctness", MAX_CRITERION_SCORE),
+    # Коды анализатора (app.analysis): штраф снижает верхнюю границу критерия.
+    "NO_INPUT_VALIDATION": ("safety", 8),
+    "EVAL_EXEC": ("safety", MAX_CRITERION_SCORE),
+    "TESTS_FAILED": ("correctness", 15),
+    "TIMEOUT": ("correctness", 20),
+    "MISSING_RETURN": ("correctness", 5),
+    "UNUSED_VARIABLE": ("code_quality", 5),
+    "LONG_FUNCTION": ("code_quality", 8),
+    "DEEP_NESTING": ("code_quality", 10),
 }
 
 SEVERITY_PENALTY: dict[str, int] = {"low": 1, "medium": 3, "high": 6}
