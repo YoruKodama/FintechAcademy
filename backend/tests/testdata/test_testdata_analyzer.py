@@ -15,12 +15,7 @@ SOLUTIONS = Path(__file__).resolve().parents[3] / "testdata" / "solutions"
 ROWS = list(csv.DictReader((SOLUTIONS / "expected.csv").open(encoding="utf-8")))
 
 # Ложные срабатывания анализатора (Issues для Юры).
-FALSE_POSITIVES = {
-    "s3_01_excellent.py": "DEEP_NESTING: цепочка if/elif считается вложенностью",
-    "s3_02_good.py": "DEEP_NESTING: цепочка if/elif считается вложенностью",
-    "s2_01_excellent.py": "NO_INPUT_VALIDATION на приватной функции _luhn с уже проверенным входом",
-    "s2_02_good.py": "NO_INPUT_VALIDATION: isdigit()/len() без raise не считаются проверкой",
-}
+FALSE_POSITIVES: dict[str, str] = {}
 
 
 def found(row: dict) -> set[tuple[str, str]]:

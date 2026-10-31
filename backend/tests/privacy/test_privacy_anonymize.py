@@ -102,13 +102,13 @@ def transfer(source: Account, target: Account, amount: Decimal) -> None:
     source.balance -= amount
     target.balance += amount
 ''',
-    '''LIMIT = 80000000000
+    """LIMIT = 80000000000
 BIG = 1234567890123456  # не карта: не сходится контрольная сумма
 PRICE = 8_000_000.25
 mask = a @ b
 version = "1.2.3.4"
 # Остаток Счёта и Комиссия Банка считаются отдельно. Банк Открытие
-''',
+""",
 ]
 
 
