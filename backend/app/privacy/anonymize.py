@@ -8,10 +8,26 @@ import re
 
 from .names import NAME, PATRONYMIC, SURNAME_STRONG, SURNAME_WEAK, classify
 
-_EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}")
+# Lookbehind не даёт начинать разбор с середины длинной строки: время линейное, а не квадратичное.
+_EMAIL = re.compile(
+    r"(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]+@[\w\-]+(?:\.[\w\-]+)*\.[A-Za-zА-Яа-яЁё]{2,}"
+)
 
 _CARD_GROUPED = re.compile(r"(?<![\w.\-])\d{4}[ \-]\d{4}[ \-]\d{4}[ \-]\d{1,7}(?![\w\-])")
-_CARD_PLAIN = re.compile(r"(?<![\w.])\d{16,19}(?![\w.])")
+# Точка или запятая после номера допустимы, если за ними не идёт цифра (конец предложения).
+_CARD_PLAIN = re.compile(r"(?<![\w.])\d{16,19}(?!\w)(?![.,]\d)")
+
+_ACCOUNT = re.compile(r"(?<![\w.])\d{20}(?!\w)(?![.,]\d)")
+_SNILS = re.compile(r"(?<![\w.\-])\d{3}-\d{3}-\d{3}[ \-]\d{2}(?![\w\-])")
+_PASSPORT = re.compile(
+    r"(?<![\w.\-])(?:\d{4}[ \u00a0]\d{6}|\d{2}[ \u00a0]\d{2}[ \u00a0]\d{6})(?![\w\-])"
+)
+_INN = re.compile(r"(?<![\w.\-])(?:\d{12}|\d{10})(?!\w)(?![.,]\d)")
+_INN_CUE = re.compile(r"(?i:\bинн\b)[ \t:№]*(?P<number>\d{10}(?:\d{2})?)(?!\d)")
+_PHONE_SHORT = re.compile(
+    r"(?<![\w.+\-])\(?9\d{2}\)?[ \-]?\d{3}[ \-]?\d{2}[ \-]?\d{2}(?![\w\-])"
+    r"|(?<![\w.+\-])9\d{9}(?!\w)"
+)
 
 _PHONE_RU = re.compile(
     r"(?<![\w.+\-])(?:\+7|\+?8|7)[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}(?!\d)"
@@ -32,6 +48,7 @@ _CUE = re.compile(
     rf"[ \t]*[:\-—]?[ \t]*(?P<words>{_WORD}(?:{_SPACE}{_WORD}){{0,2}})"
 )
 _MAX_NAME_WORDS = 3
+_EXISTING_LABEL = re.compile(r"\[([^\W\d_]+)_(\d+)\]")
 
 
 class _Labeler:
@@ -41,6 +58,12 @@ class _Labeler:
         self.mapping: dict[str, str] = {}
         self._labels: dict[tuple[str, str], str] = {}
         self._counts: dict[str, int] = {}
+
+    def reserve_existing(self, text: str) -> None:
+        """Не выдавать номера меток, уже стоящие в тексте: иначе обратная замена их сломает."""
+        for match in _EXISTING_LABEL.finditer(text):
+            kind, number = match.group(1), int(match.group(2))
+            self._counts[kind] = max(self._counts.get(kind, 0), number)
 
     def label(self, kind: str, value: str) -> str:
         key = (kind, value)
@@ -63,6 +86,43 @@ def _luhn_ok(digits: str) -> bool:
                 number -= 9
         total += number
     return total % 10 == 0
+
+
+def _inn_ok(digits: str) -> bool:
+    """Проверить контрольные цифры ИНН (10 цифр для организации, 12 для человека)."""
+
+    def check(weights: tuple[int, ...], expected: str) -> bool:
+        total = sum(int(d) * w for d, w in zip(digits, weights, strict=False))
+        return str(total % 11 % 10) == expected
+
+    if len(digits) == 10:
+        return check((2, 4, 10, 3, 5, 9, 4, 6, 8), digits[9])
+    if len(digits) == 12:
+        return check((7, 2, 4, 10, 3, 5, 9, 4, 6, 8), digits[10]) and check(
+            (3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8), digits[11]
+        )
+    return False
+
+
+def _mask_bank_ids(text: str, labeler: _Labeler) -> str:
+    """Счёт, СНИЛС, паспорт и ИНН. Голый ИНН маскируется только с верной контрольной суммой."""
+    text = _ACCOUNT.sub(lambda m: labeler.label("СЧЁТ", m.group(0)), text)
+    text = _SNILS.sub(lambda m: labeler.label("СНИЛС", m.group(0)), text)
+    text = _PASSPORT.sub(lambda m: labeler.label("ПАСПОРТ", m.group(0)), text)
+
+    def with_cue(match: re.Match) -> str:
+        number = match.group("number")
+        return match.group(0).replace(number, labeler.label("ИНН", number))
+
+    text = _INN_CUE.sub(with_cue, text)
+
+    def bare(match: re.Match) -> str:
+        value = match.group(0)
+        if len(value) == 10 and value[0] == "9":
+            return value  # такие десять цифр чаще телефон: их маскирует _mask_phones
+        return labeler.label("ИНН", value) if _inn_ok(value) else value
+
+    return _INN.sub(bare, text)
 
 
 def _mask_emails(text: str, labeler: _Labeler) -> str:
@@ -96,7 +156,8 @@ def _mask_phones(text: str, labeler: _Labeler) -> str:
         return labeler.label("ТЕЛЕФОН", raw)
 
     text = _PHONE_RU.sub(russian, text)
-    return _PHONE_INTL.sub(international, text)
+    text = _PHONE_INTL.sub(international, text)
+    return _PHONE_SHORT.sub(lambda m: labeler.label("ТЕЛЕФОН", m.group(0)), text)
 
 
 def _is_person(kinds: list[str | None]) -> bool:
@@ -170,7 +231,9 @@ def anonymize(text: str) -> tuple[str, dict[str, str]]:
     Словарь остаётся у нас и в модель не отправляется.
     """
     labeler = _Labeler()
+    labeler.reserve_existing(text)
     text = _mask_emails(text, labeler)
+    text = _mask_bank_ids(text, labeler)
     text = _mask_cards(text, labeler)
     text = _mask_phones(text, labeler)
     text = _mask_initials(text, labeler)

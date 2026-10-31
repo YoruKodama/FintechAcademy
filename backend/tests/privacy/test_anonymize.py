@@ -34,7 +34,6 @@ def test_phone_is_masked(phone):
     assert "[ТЕЛЕФОН_1]" in result
 
 
-@pytest.mark.xfail(reason="Дефект: 10-значный телефон без +7/8 не маскируется", strict=True)
 def test_phone_without_prefix_is_masked():
     assert "9123456789" not in masked("телефон 9123456789")
 
@@ -52,9 +51,6 @@ def test_card_is_masked(card):
     assert "[КАРТА_1]" in result
 
 
-@pytest.mark.xfail(
-    reason="Дефект: карта без пробелов с точкой после номера не маскируется", strict=True
-)
 def test_plain_card_at_end_of_sentence_is_masked():
     assert "4111111111111111" not in masked("Оплата с карты 4111111111111111.")
 
@@ -79,7 +75,6 @@ def test_email_is_masked(email):
     assert "[EMAIL_1]" in result
 
 
-@pytest.mark.xfail(reason="Дефект: e-mail с кириллическим доменом не маскируется", strict=True)
 def test_cyrillic_email_is_masked():
     assert "test@почта.рф" not in masked("Пишите на test@почта.рф")
 
@@ -92,7 +87,6 @@ def test_full_name_is_masked(name):
     assert name not in masked(f"Клиент {name} оформил перевод.")
 
 
-@pytest.mark.xfail(reason="Дефект: банковские ПДн не маскируются", strict=True)
 @pytest.mark.parametrize(
     "value",
     ["40817810099910004312", "7707083893", "112-233-445 95", "4510 123456"],
@@ -129,7 +123,6 @@ def test_roundtrip(text):
     assert deanonymize(masked_text, mapping) == text
 
 
-@pytest.mark.xfail(reason="Дефект: метка во входном тексте ломает deanonymize", strict=True)
 def test_roundtrip_when_input_contains_label_like_text():
     text = "x = 8 912 345 67 89; y = '[ТЕЛЕФОН_1]'"
     masked_text, mapping = anonymize(text)
@@ -161,10 +154,6 @@ def test_very_long_text_is_processed():
     assert len(mapping) == 3
 
 
-@pytest.mark.xfail(
-    reason="Дефект: квадратичное время на длинной строке без пробелов (регулярка e-mail)",
-    strict=True,
-)
 def test_long_token_is_fast():
     """Кандидат может прислать длинный литерал: обезличивание не должно подвешивать сервер."""
     import time
