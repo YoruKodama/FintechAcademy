@@ -6,10 +6,10 @@ from app.llm import LLMUnavailableError
 from app.llm.stub import StubClient
 from app.scoring.pipeline import build_user_message, evaluate_solution
 
-CODE = '''def pay(amount):
+CODE = """def pay(amount):
     # владелец: Иванов Пётр Сергеевич, ivan.petrov@example.com
     return amount * 1.1
-'''
+"""
 FINDINGS = [{"code": "FLOAT_MONEY", "severity": "high", "line": 3, "message": "Деньги во float"}]
 QUESTIONS = ["Почему деньги нельзя хранить во float?", "Как вы проверяете входные данные?"]
 ANSWERS = [

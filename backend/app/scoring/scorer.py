@@ -54,8 +54,7 @@ def _rules_note(applied: list[tuple[str, str, int]]) -> str:
     if not applied:
         return ""
     parts = [
-        f"{CRITERIA_NAMES[criterion]} −{penalty} ({code})"
-        for code, criterion, penalty in applied
+        f"{CRITERIA_NAMES[criterion]} −{penalty} ({code})" for code, criterion, penalty in applied
     ]
     return "Снято автоматическими правилами: " + ", ".join(parts) + "."
 

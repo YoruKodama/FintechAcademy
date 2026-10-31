@@ -20,14 +20,9 @@ PII_DIR = Path(__file__).resolve().parents[3] / "testdata" / "pii"
 EXPECTED = json.loads((PII_DIR / "expected.json").read_text(encoding="utf-8"))
 
 # Виды ПДн, которые anonymize() сейчас не маскирует (дефекты в Issues).
-KNOWN_GAPS = {"account", "inn", "snils", "passport"}
+KNOWN_GAPS: set[str] = set()
 # Конкретные значения, которые сейчас не маскируются: (файл, значение).
-KNOWN_VALUE_GAPS = {
-    ("pii_10.txt", "ivanov@почта.рф"),  # кириллический домен
-    ("pii_10.txt", "9161234567"),  # телефон без +7/8
-    ("pii_10.txt", "2200001234567891"),  # карта без пробелов перед точкой
-    ("pii_03.txt", "5536911122334451"),  # карта без пробелов перед точкой
-}
+KNOWN_VALUE_GAPS: set[tuple[str, str]] = set()
 
 
 def _cases():
