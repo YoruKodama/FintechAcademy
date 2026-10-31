@@ -41,7 +41,7 @@ def test_syntax_error_zeroes_correctness():
 
 def test_unknown_code_uses_severity_for_code_quality():
     findings = [
-        finding("LONG_FUNCTION", "high"),
+        finding("SOME_NEW_CODE", "high"),
         finding("MAGIC_NUMBER", "low"),
         finding("X", "weird"),
     ]
@@ -63,3 +63,27 @@ def test_explanation_cap_by_answers():
     assert explanation_cap([long_answer, "ок"]) == 10
     assert explanation_cap([long_answer, "Так безопаснее для денег клиента."]) == 25
     assert explanation_cap([long_answer, long_answer]) == 25
+
+
+def test_analyzer_codes_have_rules():
+    """Каждый код замечания анализатора снижает баллы нужного критерия, а не общий code_quality."""
+    from app.analysis.rules import ALL_RULES  # noqa: F401  (проверяем, что анализатор подключён)
+    from app.scoring.rules import RULES, apply_finding_rules
+
+    expected = {
+        "FLOAT_MONEY": "safety",
+        "NO_INPUT_VALIDATION": "safety",
+        "EVAL_EXEC": "safety",
+        "BARE_EXCEPT": "code_quality",
+        "LONG_FUNCTION": "code_quality",
+        "UNUSED_VARIABLE": "code_quality",
+        "DEEP_NESTING": "code_quality",
+        "MISSING_RETURN": "correctness",
+        "TESTS_FAILED": "correctness",
+        "TIMEOUT": "correctness",
+    }
+    for code, criterion in expected.items():
+        assert RULES[code][0] == criterion, code
+    item = {"code": "EVAL_EXEC", "severity": "high", "line": 1, "message": "x"}
+    outcome = apply_finding_rules([item])
+    assert outcome.caps["safety"] == 0
