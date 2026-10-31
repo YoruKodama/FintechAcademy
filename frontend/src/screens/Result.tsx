@@ -1,6 +1,6 @@
 import type { Criteria, Severity } from "../api";
 import { api } from "../api";
-import { ErrorBox, Loading, Page } from "../components";
+import { ErrorBox, Loading, Page, toneForCriterion, toneForTotal } from "../components";
 import { useAsync } from "../hooks";
 
 const CRITERIA_LABELS: Record<keyof Criteria, string> = {
@@ -15,6 +15,11 @@ const SEVERITY_LABELS: Record<Severity, string> = {
   medium: "средняя",
   high: "высокая",
 };
+
+const VERDICTS = { ok: "Хороший результат", warn: "Есть что улучшить", bad: "Нужно доработать" };
+
+const RING_RADIUS = 76;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
 /** Экран 2: общий балл, четыре критерия, разбор и замечания с номерами строк. */
 export default function Result({ attemptId }: { attemptId: number }) {
@@ -35,26 +40,48 @@ export default function Result({ attemptId }: { attemptId: number }) {
   }
 
   const { total, criteria, feedback, findings } = data.result;
+  const tone = toneForTotal(total);
+  const color = `var(--${tone})`;
+
   return (
-    <Page title="Результат">
+    <Page title="Результат" subtitle="Автоматический разбор вашего решения.">
       <section className="panel score">
         <div className="total" aria-label={`Общий балл ${total} из 100`}>
-          <span className="number">{total}</span>
-          <span className="of">из 100</span>
+          <svg className="ring" viewBox="0 0 180 180" aria-hidden="true">
+            <circle className="track" cx="90" cy="90" r={RING_RADIUS} />
+            <circle
+              className="value"
+              cx="90"
+              cy="90"
+              r={RING_RADIUS}
+              style={{ stroke: color }}
+              strokeDasharray={`${(total / 100) * RING_LENGTH} ${RING_LENGTH}`}
+            />
+          </svg>
+          <div className="center">
+            <span className="number">{total}</span>
+            <span className="of">из 100</span>
+          </div>
         </div>
-        <ul className="criteria">
-          {(Object.keys(CRITERIA_LABELS) as (keyof Criteria)[]).map((key) => (
-            <li key={key}>
-              <div className="criterion-head">
-                <span>{CRITERIA_LABELS[key]}</span>
-                <strong>{criteria[key]} / 25</strong>
-              </div>
-              <div className="bar">
-                <div className="fill" style={{ width: `${(criteria[key] / 25) * 100}%` }} />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div>
+          <span className={`verdict tone-${tone}`}>{VERDICTS[tone]}</span>
+          <ul className="criteria">
+            {(Object.keys(CRITERIA_LABELS) as (keyof Criteria)[]).map((key) => (
+              <li key={key}>
+                <div className="criterion-head">
+                  <span>{CRITERIA_LABELS[key]}</span>
+                  <strong>{criteria[key]} / 25</strong>
+                </div>
+                <div className="bar">
+                  <div
+                    className={`fill tone-${toneForCriterion(criteria[key])}`}
+                    style={{ width: `${(criteria[key] / 25) * 100}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className="panel">
@@ -65,7 +92,7 @@ export default function Result({ attemptId }: { attemptId: number }) {
       <section className="panel">
         <h2>Замечания к коду</h2>
         {findings.length === 0 ? (
-          <p>Замечаний нет.</p>
+          <p className="empty">Замечаний нет.</p>
         ) : (
           <ul className="findings">
             {findings.map((item, index) => (

@@ -29,15 +29,23 @@ export default function App() {
       </Page>
     );
 
+  const tasksActive = !section || section === "scenario" || section === "result";
   return (
     <>
       <header className="topbar">
         <a href="#/" className="brand">
-          AI-тренажёр собеседований
+          <span className="logo" aria-hidden="true">
+            AI
+          </span>
+          Тренажёр собеседований
         </a>
         <nav>
-          <a href="#/">Задачи</a>
-          <a href="#/manager">Панель руководителя</a>
+          <a href="#/" className={tasksActive ? "active" : ""}>
+            Задачи
+          </a>
+          <a href="#/manager" className={section === "manager" ? "active" : ""}>
+            Панель руководителя
+          </a>
         </nav>
       </header>
       {content}
