@@ -3,10 +3,15 @@
 Ограничения: без сети, 5 секунд, 128 МБ памяти, не от root, корневая файловая система
 только для чтения. Код кандидата никогда не выполняется в процессе backend.
 Если Docker недоступен, код не запускается вовсе (статус "unavailable").
+
+Проверки задачи: список вызовов, у каждого поле call (выражение) и expected (ожидаемый repr).
+В контейнер передаются только вызовы (без ожидаемых значений): он печатает repr результатов,
+а сравнивает их с эталоном backend. Поэтому код кандидата не может «напечатать успех»,
+не зная правильных ответов, и объект с подменённым __eq__ тоже не пройдёт проверку.
 """
 
+import json
 import os
-import secrets
 import shutil
 import subprocess
 import tempfile
@@ -19,6 +24,30 @@ OUTPUT_LIMIT = 2000
 HOST_GRACE_SEC = 10
 EXIT_TIMEOUT = 124
 EXIT_OOM = 137
+RESULTS_PREFIX = "__RESULTS__"
+
+RUNNER = """\
+import importlib.util
+import json
+from decimal import Decimal
+
+spec = importlib.util.spec_from_file_location("solution", "/work/solution.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+namespace = dict(vars(module))
+namespace.setdefault("Decimal", Decimal)
+
+with open("/work/cases.json", encoding="utf-8") as handle:
+    calls = json.load(handle)
+
+results = []
+for call in calls:
+    try:
+        results.append(repr(eval(call, namespace)))
+    except BaseException as exc:
+        results.append(type(exc).__name__)
+print("__RESULTS__" + json.dumps(results))
+"""
 
 
 class RunResult(TypedDict):
@@ -36,7 +65,7 @@ def _limits() -> tuple[int, int]:
 
 def _docker_command(name: str, workdir: Path, timeout: int, memory_mb: int) -> list[str]:
     inner = (
-        f"timeout {timeout} python -I /work/main.py >/tmp/out 2>&1; code=$?; "
+        f"timeout {timeout} python -I /work/runner.py >/tmp/out 2>&1; code=$?; "
         f"head -c {OUTPUT_LIMIT} /tmp/out; exit $code"
     )
     return [
@@ -53,21 +82,56 @@ def _docker_command(name: str, workdir: Path, timeout: int, memory_mb: int) -> l
     ]  # fmt: skip
 
 
+def parse_cases(tests: str) -> list[dict[str, str]]:
+    """Разобрать проверки задачи; ошибка в формате означает ошибку сценария, а не кандидата."""
+    cases = json.loads(tests)
+    if not isinstance(cases, list) or not all(
+        isinstance(item, dict) and {"call", "expected"} <= item.keys() for item in cases
+    ):
+        raise ValueError("tests должен быть списком объектов с полями call и expected")
+    return cases
+
+
+def _compare(output: str, cases: list[dict[str, str]]) -> RunResult:
+    lines = [line for line in output.splitlines() if line.startswith(RESULTS_PREFIX)]
+    if not lines:
+        return {"status": "failed", "output": output.strip()[:OUTPUT_LIMIT] or "Нет результата."}
+    try:
+        results = json.loads(lines[-1][len(RESULTS_PREFIX) :])
+    except json.JSONDecodeError:
+        return {"status": "failed", "output": "Результат запуска не разобран."}
+    if not isinstance(results, list) or len(results) != len(cases):
+        return {"status": "failed", "output": "Результат запуска не совпал по длине."}
+    wrong = [
+        case["call"] for case, got in zip(cases, results, strict=True) if got != case["expected"]
+    ]
+    if wrong:
+        return {
+            "status": "failed",
+            "output": f"Не прошло проверок: {len(wrong)} из {len(cases)}, например {wrong[0]}.",
+        }
+    return {"status": "passed", "output": f"Пройдено проверок: {len(cases)}."}
+
+
 def run_tests(code: str, tests: str) -> RunResult:
-    """Выполнить код кандидата вместе с проверками задачи в контейнере и вернуть итог."""
+    """Выполнить код кандидата на проверках задачи в контейнере и вернуть итог."""
     if shutil.which("docker") is None:
         return {"status": "unavailable", "output": "Docker недоступен: код не запускался."}
+    cases = parse_cases(tests)
 
     timeout, memory_mb = _limits()
-    marker = f"__OK_{secrets.token_hex(8)}__"
     name = f"sandbox-{uuid.uuid4().hex[:12]}"
-    program = f"{code}\n\n{tests}\nprint({marker!r})\n"
 
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
-        (workdir / "main.py").write_text(program, encoding="utf-8")
+        (workdir / "solution.py").write_text(code, encoding="utf-8")
+        (workdir / "runner.py").write_text(RUNNER, encoding="utf-8")
+        (workdir / "cases.json").write_text(
+            json.dumps([case["call"] for case in cases]), encoding="utf-8"
+        )
         workdir.chmod(0o755)
-        (workdir / "main.py").chmod(0o644)
+        for item in workdir.iterdir():
+            item.chmod(0o644)
         try:
             proc = subprocess.run(
                 _docker_command(name, workdir, timeout, memory_mb),
@@ -79,11 +143,13 @@ def run_tests(code: str, tests: str) -> RunResult:
             subprocess.run(["docker", "kill", name], capture_output=True, check=False)
             return {"status": "timeout", "output": f"Превышен лимит времени {timeout} с."}
 
-    output = proc.stdout.replace(marker, "").strip()[:OUTPUT_LIMIT]
     if proc.returncode == EXIT_TIMEOUT:
         return {"status": "timeout", "output": f"Превышен лимит времени {timeout} с."}
     if proc.returncode == EXIT_OOM:
         return {"status": "failed", "output": f"Превышен лимит памяти {memory_mb} МБ."}
-    if proc.returncode == 0 and marker in proc.stdout:
-        return {"status": "passed", "output": output}
-    return {"status": "failed", "output": output or "Решение не прошло проверки."}
+    if proc.returncode != 0:
+        return {
+            "status": "failed",
+            "output": proc.stdout.strip()[:OUTPUT_LIMIT] or "Ошибка запуска.",
+        }
+    return _compare(proc.stdout, cases)

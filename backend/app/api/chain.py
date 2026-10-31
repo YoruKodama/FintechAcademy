@@ -26,7 +26,11 @@ def analyze_code(code: str, tests: str | None = None) -> list[dict]:
 
     findings = list(analyze(code))
     if tests and os.getenv("SANDBOX_ENABLED") == "1":
-        run = run_tests(code, tests)
+        try:
+            run = run_tests(code, tests)
+        except ValueError as exc:
+            log.error("Проверки сценария заданы неверно, запуск пропущен: %s", exc)
+            return findings
         if run["status"] == "failed":
             findings.append(
                 {
