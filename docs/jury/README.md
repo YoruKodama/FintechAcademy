@@ -10,6 +10,11 @@ AI-тренажёр собеседований для сотрудников б�
 | [04_metrics.md](04_metrics.md) | Метрики ценности и как они измеряются |
 | [05_presentation.md](05_presentation.md) | Презентация, 12 слайдов |
 | [06_financial_model.md](06_financial_model.md) | Финансовая модель на одной странице |
+| [07_plan.md](07_plan.md) | План внедрения и развития |
+| [presentation.pptx](presentation.pptx), [presentation.pdf](presentation.pdf) | Презентация, 12 слайдов (скриншоты внутри) |
+| [sprint1_upload.md](sprint1_upload.md) | Что загружать на платформу до 1 ноября и текст «ключевых результатов» |
+| [video_script.md](video_script.md), [video_guide.md](video_guide.md) | Сценарий видео-демо и пошаговый гайд по записи |
+| [screenshots/](screenshots/) | Скриншоты экранов для слайдов |
 
 ## Как читать числа
 
