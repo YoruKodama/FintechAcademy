@@ -102,10 +102,10 @@ def test_empty_solution_shows_error(page: Page) -> None:
     open_scenario(page)
     set_editor_code(page, "   \n")
     page.get_by_role("button", name="Отправить").click()
-    expect(page.get_by_role("alert")).to_contain_text("Решение пустое")
+    expect(page.locator(".state.error")).to_contain_text("Решение пустое")
     assert "#/result/" not in page.url
 
 
 def test_unknown_page_is_handled(page: Page) -> None:
     page.goto(f"{BASE_URL}/#/scenario/999999")
-    expect(page.get_by_role("alert")).to_be_visible()
+    expect(page.locator(".state.error")).to_be_visible()
