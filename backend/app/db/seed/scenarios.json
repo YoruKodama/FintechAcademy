@@ -8,7 +8,48 @@
       "Как вы проверяли граничные значения (минимум и максимум комиссии)?",
       "Что изменится, если комиссия будет зависеть от тарифа клиента?"
     ],
-    "tests": "from decimal import Decimal\nassert calc_fee('1000') == Decimal('30.00')\nassert calc_fee('10000') == Decimal('150.00')\nassert calc_fee('12345.67') == Decimal('185.19')\nassert calc_fee('200000') == Decimal('3000.00')\n"
+    "tests": [
+      {
+        "call": "calc_fee('1000')",
+        "expected": "Decimal('30.00')"
+      },
+      {
+        "call": "calc_fee('2000')",
+        "expected": "Decimal('30.00')"
+      },
+      {
+        "call": "calc_fee('10000')",
+        "expected": "Decimal('150.00')"
+      },
+      {
+        "call": "calc_fee('12345.67')",
+        "expected": "Decimal('185.19')"
+      },
+      {
+        "call": "calc_fee('200000')",
+        "expected": "Decimal('3000.00')"
+      },
+      {
+        "call": "calc_fee('1000000')",
+        "expected": "Decimal('3000.00')"
+      },
+      {
+        "call": "calc_fee('0.1')",
+        "expected": "Decimal('30.00')"
+      },
+      {
+        "call": "calc_fee('0')",
+        "expected": "ValueError"
+      },
+      {
+        "call": "calc_fee('-100')",
+        "expected": "ValueError"
+      },
+      {
+        "call": "calc_fee('abc')",
+        "expected": "ValueError"
+      }
+    ]
   },
   {
     "title": "Проверка и маскирование номера карты",
@@ -19,7 +60,44 @@
       "Почему полный номер карты нельзя писать в логи?",
       "Как бы вы протестировали эти функции?"
     ],
-    "tests": "assert is_valid_card('4111 1111 1111 1111') is True\nassert is_valid_card('4111 1111 1111 1112') is False\nassert mask_card('4111-1111-1111-1111') == '**** **** **** 1111'\n"
+    "tests": [
+      {
+        "call": "is_valid_card('4111 1111 1111 1111')",
+        "expected": "True"
+      },
+      {
+        "call": "is_valid_card('4111-1111-1111-1111')",
+        "expected": "True"
+      },
+      {
+        "call": "is_valid_card('2200001234567891')",
+        "expected": "True"
+      },
+      {
+        "call": "is_valid_card('4111 1111 1111 1112')",
+        "expected": "False"
+      },
+      {
+        "call": "is_valid_card('4111 1111 1111')",
+        "expected": "False"
+      },
+      {
+        "call": "is_valid_card('4111 1111 1111 111a')",
+        "expected": "False"
+      },
+      {
+        "call": "mask_card('4111 1111 1111 1111')",
+        "expected": "'**** **** **** 1111'"
+      },
+      {
+        "call": "mask_card('2200-0012-3456-7891')",
+        "expected": "'**** **** **** 7891'"
+      },
+      {
+        "call": "mask_card('1234')",
+        "expected": "ValueError"
+      }
+    ]
   },
   {
     "title": "Баланс по выписке и крупные операции",
@@ -30,6 +108,31 @@
       "Что делать, если одна операция в выписке некорректна: падать целиком или пропускать?",
       "Как бы вы обработали выписку на миллион операций?"
     ],
-    "tests": "from decimal import Decimal\nops = [{'id': 'a', 'type': 'in', 'amount': '500'}, {'id': 'b', 'type': 'out', 'amount': '200000'}]\nbalance, big = process_statement(Decimal('1000000'), ops)\nassert balance == Decimal('800500')\nassert big == ['b']\n"
+    "tests": [
+      {
+        "call": "process_statement(Decimal('1000'), [{'id': '1', 'type': 'in', 'amount': '500.50'}, {'id': '2', 'type': 'out', 'amount': '200.25'}])",
+        "expected": "(Decimal('1300.25'), [])"
+      },
+      {
+        "call": "process_statement(Decimal('0'), [{'id': 'a', 'type': 'in', 'amount': '300000'}, {'id': 'b', 'type': 'out', 'amount': '150000'}, {'id': 'c', 'type': 'out', 'amount': '100000'}])",
+        "expected": "(Decimal('50000'), ['b'])"
+      },
+      {
+        "call": "process_statement(Decimal('0'), [{'id': 'a', 'type': 'in', 'amount': '300000'}, {'id': 'b', 'type': 'out', 'amount': '150000'}, {'id': 'c', 'type': 'out', 'amount': '100000'}], Decimal('120000'))",
+        "expected": "(Decimal('50000'), ['b'])"
+      },
+      {
+        "call": "process_statement(Decimal('0'), [{'id': '1', 'type': 'x', 'amount': '5'}])",
+        "expected": "ValueError"
+      },
+      {
+        "call": "process_statement(Decimal('0'), [{'id': '1', 'type': 'in', 'amount': '-5'}])",
+        "expected": "ValueError"
+      },
+      {
+        "call": "process_statement(Decimal('0'), [{'id': '1', 'type': 'in', 'amount': 'abc'}])",
+        "expected": "ValueError"
+      }
+    ]
   }
 ]

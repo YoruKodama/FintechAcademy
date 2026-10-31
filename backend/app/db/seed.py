@@ -11,6 +11,13 @@ from .models import Scenario
 SEED_FILE = Path(__file__).parent / "seed" / "scenarios.json"
 
 
+def _tests_text(tests: object) -> str | None:
+    """Проверки задачи хранятся строкой JSON: список {call, expected}."""
+    if tests is None or isinstance(tests, str):
+        return tests
+    return json.dumps(tests, ensure_ascii=False)
+
+
 def seed_scenarios(session: Session, path: Path = SEED_FILE) -> int:
     """Добавить сценарии, если таблица пуста. Вернуть число добавленных."""
     if session.scalar(select(func.count()).select_from(Scenario)):
@@ -23,7 +30,7 @@ def seed_scenarios(session: Session, path: Path = SEED_FILE) -> int:
                 description=item["description"],
                 code_template=item["code_template"],
                 questions=item["questions"],
-                tests=item.get("tests"),
+                tests=_tests_text(item.get("tests")),
             )
         )
     session.commit()

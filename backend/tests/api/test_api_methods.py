@@ -170,3 +170,26 @@ def test_dates_have_timezone(client):
     assert row["started_at"].endswith("Z")
     assert full["started_at"].endswith("Z")
     assert full["finished_at"].endswith("Z")
+
+
+def test_submit_rejects_too_long_code(client):
+    attempt = _start(client)
+    response = client.post(
+        f"/attempts/{attempt['id']}/submit",
+        json={"code": "x" * 300_000, "answers": _answers(client)},
+    )
+    _error(response, 422, "validation_error")
+
+
+def test_submit_rejects_too_long_answer(client):
+    attempt = _start(client)
+    answers = _answers(client)
+    answers[0] = "я" * 6_000
+    response = client.post(
+        f"/attempts/{attempt['id']}/submit", json={"code": CODE, "answers": answers}
+    )
+    _error(response, 422, "validation_error")
+
+
+def test_seeded_scenarios_expose_checks_to_backend_only(client):
+    assert "tests" not in client.get("/scenarios/1").json()

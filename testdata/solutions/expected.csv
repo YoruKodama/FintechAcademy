@@ -1,16 +1,21 @@
-solution,scenario,answers,expected_total,correctness,code_quality,safety,explanation,expected_findings,notes
-s1/s1_01_excellent.py,s1,s1/s1_01_excellent.answers.json,97,25,24,24,24,,"эталон: Decimal, границы, валидация"
-s1/s1_02_good.py,s1,s1/s1_02_good.answers.json,75,22,18,20,15,no_input_validation:low;magic_numbers:low,InvalidOperation вместо ValueError на 'abc'
-s1/s1_03_float.py,s1,s1/s1_03_float.answers.json,39,8,12,12,7,float_money:high;no_input_validation:medium,float для денег; падает на строковом вводе
-s1/s1_04_no_limits.py,s1,s1/s1_04_no_limits.answers.json,17,3,5,6,3,float_money:high;bare_except:medium;wrong_result:high;silent_error:medium,"нет мин/макс комиссии, ошибки глушатся"
-s1/s1_05_dangerous.py,s1,s1/s1_05_dangerous.answers.json,2,0,2,0,0,eval_usage:high;os_command:high;float_money:high;print_debug:low;wrong_result:high,eval и os.system; для Т6 и проверки safety
-s2/s2_01_excellent.py,s2,s2/s2_01_excellent.answers.json,97,25,24,24,24,,эталон
-s2/s2_02_good.py,s2,s2/s2_02_good.answers.json,81,25,19,21,16,duplicated_code:low,"корректно, но дублирование очистки номера"
-s2/s2_03_no_luhn.py,s2,s2/s2_03_no_luhn.answers.json,51,14,14,15,8,wrong_result:high;no_input_validation:medium,"нет алгоритма Луна, только длина 16"
-s2/s2_04_logs_pan.py,s2,s2/s2_04_logs_pan.answers.json,30,13,10,3,4,pan_in_logs:high;wrong_result:high,полный номер карты в лог; Луна без -9; маска открывает первые 12 цифр
-s2/s2_05_broken.py,s2,s2/s2_05_broken.answers.json,6,0,2,4,0,infinite_loop:high;bare_except:medium;wrong_result:high,бесконечный цикл на номере с пробелами; маска не маскирует
-s3/s3_01_excellent.py,s3,s3/s3_01_excellent.answers.json,97,25,24,24,24,,эталон
-s3/s3_02_good.py,s3,s3/s3_02_good.answers.json,76,22,19,20,15,no_input_validation:low,InvalidOperation вместо ValueError на нечисловой сумме
-s3/s3_03_mutates.py,s3,s3/s3_03_mutates.answers.json,42,12,8,14,8,mutable_default:high;input_mutation:medium;no_input_validation:medium,изменяемый аргумент по умолчанию: результаты копятся между вызовами
-s3/s3_04_float_hardcode.py,s3,s3/s3_04_float_hardcode.answers.json,27,5,8,10,4,float_money:high;broad_except:medium;magic_numbers:medium;silent_error:high,"float, лимит зашит, ошибки пропускаются"
-s3/s3_05_dangerous.py,s3,s3/s3_05_dangerous.answers.json,4,2,2,0,0,eval_usage:high;os_command:high;hardcoded_secret:high;network_access:high;unsafe_deserialization:medium,"eval, shell, токен в коде, сеть; для Т6"
+solution,scenario,meta,expected_total,correctness,code_quality,safety,explanation,expected_findings,expected_notes,notes
+s1_01_excellent.py,s1,s1_01_excellent.json,97,25,24,24,24,,,"эталон: Decimal, границы, валидация"
+s1_02_good.py,s1,s1_02_good.json,75,22,18,20,15,,no_input_validation:low;magic_numbers:low,InvalidOperation вместо ValueError на 'abc'
+s1_03_float.py,s1,s1_03_float.json,39,8,12,12,7,FLOAT_MONEY:high,no_input_validation:medium,float для денег; падает на строковом вводе
+s1_04_no_limits.py,s1,s1_04_no_limits.json,17,3,5,6,3,FLOAT_MONEY:high;BARE_EXCEPT:medium,wrong_result:high;silent_error:medium,"нет мин/макс комиссии, ошибки глушатся"
+s1_05_dangerous.py,s1,s1_05_dangerous.json,2,0,2,0,0,NO_INPUT_VALIDATION:medium;EVAL_EXEC:high;FLOAT_MONEY:high,os_command:high;print_debug:low;wrong_result:high,eval и os.system; для Т6 и проверки safety
+s1_06_long_function.py,s1,s1_06_long_function.json,79,25,16,23,15,LONG_FUNCTION:low,,"верно, но одна функция на 34 строки"
+s1_07_missing_return.py,s1,s1_07_missing_return.json,72,22,15,20,15,MISSING_RETURN:medium,no_input_validation:low,последний if без else: формально может вернуть None; InvalidOperation на 'abc'
+s2_01_excellent.py,s2,s2_01_excellent.json,97,25,24,24,24,,,эталон
+s2_02_good.py,s2,s2_02_good.json,81,25,19,21,16,,duplicated_code:low,"корректно, но дублирование очистки номера"
+s2_03_no_luhn.py,s2,s2_03_no_luhn.json,51,14,14,15,8,NO_INPUT_VALIDATION:medium,wrong_result:high,"нет алгоритма Луна, только длина 16; mask_card без проверок"
+s2_04_logs_pan.py,s2,s2_04_logs_pan.json,30,13,10,3,4,NO_INPUT_VALIDATION:medium,pan_in_logs:high;wrong_result:high,полный номер карты в лог; Луна без -9; маска открывает первые 12 цифр
+s2_05_broken.py,s2,s2_05_broken.json,6,0,2,4,0,BARE_EXCEPT:medium;NO_INPUT_VALIDATION:medium,infinite_loop:high;wrong_result:high,бесконечный цикл на номере с пробелами; маска не маскирует
+s2_06_unused_variable.py,s2,s2_06_unused_variable.json,76,25,15,21,15,UNUSED_VARIABLE:low,,"верно, но три неиспользуемые переменные"
+s2_07_unused_and_missing_return.py,s2,s2_07_unused_and_missing_return.json,57,18,12,19,8,UNUSED_VARIABLE:low;MISSING_RETURN:medium,wrong_result:high,на невалидном номере возвращает None вместо False
+s3_01_excellent.py,s3,s3_01_excellent.json,97,25,24,24,24,,,эталон
+s3_02_good.py,s3,s3_02_good.json,76,22,19,20,15,,no_input_validation:low,InvalidOperation вместо ValueError на нечисловой сумме
+s3_03_mutates.py,s3,s3_03_mutates.json,42,12,8,14,8,NO_INPUT_VALIDATION:medium,mutable_default:high;input_mutation:medium,изменяемый аргумент по умолчанию: результаты копятся между вызовами
+s3_04_float_hardcode.py,s3,s3_04_float_hardcode.json,27,5,8,10,4,FLOAT_MONEY:high;DEEP_NESTING:medium;BARE_EXCEPT:low,magic_numbers:medium;silent_error:high,"float, лимит зашит, ошибки пропускаются"
+s3_05_dangerous.py,s3,s3_05_dangerous.json,4,2,2,0,0,NO_INPUT_VALIDATION:medium;EVAL_EXEC:high,os_command:high;hardcoded_secret:high;network_access:high;unsafe_deserialization:medium,"eval, shell, токен в коде, сеть; для Т6"
+s3_06_deep_nesting.py,s3,s3_06_deep_nesting.json,75,25,13,22,15,DEEP_NESTING:medium,,"верно, но вложенность 4 уровня (else → if → if → if)"

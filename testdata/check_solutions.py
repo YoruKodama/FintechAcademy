@@ -1,6 +1,6 @@
 """Прогон тестовых решений на эталонных случаях сценариев S1-S3.
 
-Запуск: python testdata/solutions/check_solutions.py
+Запуск: python testdata/check_solutions.py
 Каждое решение выполняется в отдельном процессе с таймаутом. Решения, которые вызывают
 внешние команды (os.system, subprocess) или пишут на диск, вне песочницы НЕ запускаются.
 Результат: доля пройденных случаев, по ней проверяется колонка correctness в expected.csv.
@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent / "solutions"
 TIMEOUT_SEC = 5
 UNSAFE = re.compile(r"\bos\.system\b|\bsubprocess\b|\bpickle\.dump\b|\bopen\([^)]*['\"]w")
 
@@ -42,34 +42,61 @@ CASES = {
         ("mask_card", ["1234"], "ValueError"),
     ],
     "s3": [
-        ("process_statement", ["Decimal('1000')", [
-            {"id": "1", "type": "in", "amount": "500.50"},
-            {"id": "2", "type": "out", "amount": "200.25"}]],
-         "(Decimal('1300.25'), [])"),
-        ("process_statement", ["Decimal('0')", [
-            {"id": "a", "type": "in", "amount": "300000"},
-            {"id": "b", "type": "out", "amount": "150000"},
-            {"id": "c", "type": "out", "amount": "100000"}]],
-         "(Decimal('50000'), ['b'])"),
-        ("process_statement", ["Decimal('0.1')", [
-            {"id": "1", "type": "in", "amount": "0.2"}]],
-         "(Decimal('0.3'), [])"),
-        ("process_statement", ["Decimal('0')", [
-            {"id": "x", "type": "out", "amount": "500"}], "Decimal('100')"],
-         "(Decimal('-500'), ['x'])"),
-        ("process_statement", ["Decimal('0')", [{"id": "1", "type": "bonus", "amount": "1"}]],
-         "ValueError"),
-        ("process_statement", ["Decimal('0')", [{"id": "1", "type": "in", "amount": "-5"}]],
-         "ValueError"),
-        ("process_statement", ["Decimal('0')", [{"id": "1", "type": "in", "amount": "abc"}]],
-         "ValueError"),
+        (
+            "process_statement",
+            [
+                "Decimal('1000')",
+                [
+                    {"id": "1", "type": "in", "amount": "500.50"},
+                    {"id": "2", "type": "out", "amount": "200.25"},
+                ],
+            ],
+            "(Decimal('1300.25'), [])",
+        ),
+        (
+            "process_statement",
+            [
+                "Decimal('0')",
+                [
+                    {"id": "a", "type": "in", "amount": "300000"},
+                    {"id": "b", "type": "out", "amount": "150000"},
+                    {"id": "c", "type": "out", "amount": "100000"},
+                ],
+            ],
+            "(Decimal('50000'), ['b'])",
+        ),
+        (
+            "process_statement",
+            ["Decimal('0.1')", [{"id": "1", "type": "in", "amount": "0.2"}]],
+            "(Decimal('0.3'), [])",
+        ),
+        (
+            "process_statement",
+            ["Decimal('0')", [{"id": "x", "type": "out", "amount": "500"}], "Decimal('100')"],
+            "(Decimal('-500'), ['x'])",
+        ),
+        (
+            "process_statement",
+            ["Decimal('0')", [{"id": "1", "type": "bonus", "amount": "1"}]],
+            "ValueError",
+        ),
+        (
+            "process_statement",
+            ["Decimal('0')", [{"id": "1", "type": "in", "amount": "-5"}]],
+            "ValueError",
+        ),
+        (
+            "process_statement",
+            ["Decimal('0')", [{"id": "1", "type": "in", "amount": "abc"}]],
+            "ValueError",
+        ),
         ("process_statement", ["Decimal('0')", []], "(Decimal('0'), [])"),
         ("__immutability__", [], "True"),
         ("__repeat_call__", [], "True"),
     ],
 }
 
-RUNNER = r'''
+RUNNER = r"""
 import importlib.util, json, sys
 from decimal import Decimal
 spec = importlib.util.spec_from_file_location("solution", sys.argv[1])
@@ -93,14 +120,17 @@ except ValueError:
     print("ValueError")
 except Exception as exc:
     print("ERROR " + type(exc).__name__)
-'''
+"""
 
 
 def run_case(path: Path, func: str, args: list) -> str:
     try:
         done = subprocess.run(
             [sys.executable, "-I", "-c", RUNNER, str(path), json.dumps([func, args])],
-            capture_output=True, text=True, timeout=TIMEOUT_SEC, cwd=HERE,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_SEC,
+            cwd=HERE,
         )
     except subprocess.TimeoutExpired:
         return "TIMEOUT"
@@ -111,7 +141,7 @@ def run_case(path: Path, func: str, args: list) -> str:
 def main() -> int:
     summary = {}
     for scenario, cases in CASES.items():
-        for path in sorted((HERE / scenario).glob("*.py")):
+        for path in sorted(HERE.glob(f"{scenario}_*.py")):
             if UNSAFE.search(path.read_text(encoding="utf-8")):
                 summary[path.stem] = "не запускалось: внешние команды/запись на диск"
                 print(f"{path.stem:28} SKIP (опасно вне песочницы)")
@@ -123,7 +153,8 @@ def main() -> int:
                 if got == expected:
                     passed += 1
                 else:
-                    fails.append(f"{func}{args if len(str(args)) < 40 else '(...)'}: ждали {expected}, получили {got}")
+                    shown = args if len(str(args)) < 40 else "(...)"
+                    fails.append(f"{func}{shown}: ждали {expected}, получили {got}")
             summary[path.stem] = f"{passed}/{len(cases)}"
             print(f"{path.stem:28} {passed:2}/{len(cases)}")
             for line in fails:

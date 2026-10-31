@@ -1,7 +1,7 @@
 """Схемы запросов и ответов API. Описание контракта: openapi.yaml."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -29,11 +29,18 @@ class AttemptStart(BaseModel):
     scenario_id: int
 
 
-class Submission(BaseModel):
-    """Решение кандидата и ответы на вопросы сценария."""
+MAX_CODE_CHARS = 20_000
+MAX_ANSWER_CHARS = 5_000
+MAX_ANSWERS = 10
 
-    code: str
-    answers: list[str]
+
+class Submission(BaseModel):
+    """Решение кандидата и ответы на вопросы сценария (длина ограничена)."""
+
+    code: str = Field(max_length=MAX_CODE_CHARS)
+    answers: list[Annotated[str, Field(max_length=MAX_ANSWER_CHARS)]] = Field(
+        max_length=MAX_ANSWERS
+    )
 
 
 class Finding(BaseModel):
