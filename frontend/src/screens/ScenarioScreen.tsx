@@ -8,36 +8,29 @@ import { useAsync } from "../hooks";
 /** Экран 1: условие, редактор кода, ответы на вопросы и отправка решения. */
 export default function ScenarioScreen({ scenarioId }: { scenarioId: number }) {
   const scenario = useAsync(() => api.getScenario(scenarioId), [scenarioId]);
-  const [attemptId, setAttemptId] = useState<number | null>(null);
-  const [startError, setStartError] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [answers, setAnswers] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const started = useRef<number | null>(null);
+  const initialized = useRef<number | null>(null);
 
-  // Прохождение создаётся один раз, когда сценарий загружен.
+  // Шаблон кода и пустые ответы подставляются один раз, когда сценарий загружен.
   useEffect(() => {
     const loaded = scenario.data;
-    if (!loaded || started.current === loaded.id) return;
-    started.current = loaded.id;
+    if (!loaded || initialized.current === loaded.id) return;
+    initialized.current = loaded.id;
     setCode(loaded.code_template);
     setAnswers(loaded.questions.map(() => ""));
-    api
-      .startAttempt(loaded.id)
-      .then((attempt) => setAttemptId(attempt.id))
-      .catch((err: unknown) =>
-        setStartError(err instanceof ApiError ? err.message : "Не удалось начать прохождение."),
-      );
   }, [scenario.data]);
 
+  // Прохождение создаётся только при отправке: открытая страница не засоряет панель руководителя.
   async function submit() {
-    if (attemptId === null) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await api.submit(attemptId, code, answers);
-      window.location.hash = `#/result/${attemptId}`;
+      const attempt = await api.startAttempt(scenarioId);
+      await api.submit(attempt.id, code, answers);
+      window.location.hash = `#/result/${attempt.id}`;
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : "Не удалось отправить решение.");
       setSubmitting(false);
@@ -89,17 +82,12 @@ export default function ScenarioScreen({ scenarioId }: { scenarioId: number }) {
         ))}
       </section>
 
-      {startError && <ErrorBox message={startError} />}
       {submitError && <ErrorBox message={submitError} />}
       <div className="actions">
         <a className="link" href="#/">
           ← К списку задач
         </a>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={submitting || attemptId === null || startError !== null}
-        >
+        <button type="button" onClick={submit} disabled={submitting}>
           {submitting ? "Проверяем решение…" : "Отправить"}
         </button>
       </div>
