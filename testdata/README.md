@@ -18,58 +18,83 @@
 
 ## `solutions/` — решения для оценки качества модели
 
-3 сценария (`scenarios.md`, **черновые**, до получения сценариев от Юры) × 5 решений
-от отличного до опасного. Рядом с каждым решением — `*.answers.json` с ответами на вопросы
-того же уровня.
+3 сценария × 6–7 решений (20 всего), от отличного до опасного. Условия и вопросы — из
+`backend/app/db/seed/scenarios.json` (основа — `solutions/scenarios.md`).
+
+Формат совместим с `scripts/eval.py` (`load_samples` в `app/scoring/evaluation.py`),
+папка плоская:
+
+- `sN_MM_<описание>.py` — решение (`sN` — сценарий);
+- `sN_MM_<описание>.json` — `task`, `questions`, `answers`, `expected` (эталонный балл),
+  а также `scenario` и `answers_level` для справки. Ключа `findings` нет намеренно:
+  замечания находит анализатор.
+
+Прогон через модель: `LLM_PROVIDER=ollama python scripts/eval.py`.
 
 `expected.csv`:
 
 | Колонка | Что это |
 |---|---|
-| `solution` | путь к решению |
+| `solution` | файл решения |
 | `scenario` | `s1` / `s2` / `s3` |
-| `answers` | файл с ответами на вопросы |
+| `meta` | файл с условием, вопросами, ответами и эталоном |
 | `expected_total` | эталонный балл 0–100 = сумма четырёх критериев |
 | `correctness`, `code_quality`, `safety`, `explanation` | эталон по критериям, 0–25 |
-| `expected_findings` | ожидаемые замечания `код:severity` через `;` |
+| `expected_findings` | что **должен найти анализатор**: только его 8 кодов, `КОД:severity` через `;` |
+| `expected_notes` | проблемы, которые анализатор не ищет (для оценки модели): `код:severity` |
 | `notes` | почему такой балл |
 
-**Баллы — черновик, проставлены по результатам прогона.** По ТЗ эталонные баллы выставляет
-тестировщик сам: перед передачей Ангелине пересмотреть каждую строку.
+Автопроверки: `backend/tests/testdata/test_testdata_integrity.py` (формат и суммы) и
+`backend/tests/testdata/test_testdata_analyzer.py` (анализатор находит `expected_findings`;
+лишние замечания — известные ложные срабатывания, отмечены xfail).
 
-Проверить решения: `python testdata/solutions/check_solutions.py` — каждое решение в
-отдельном процессе с таймаутом 5 с; решения с `os.system`/`subprocess`/записью на диск
-вне песочницы не запускаются. Текущий результат:
+Поведение решений: `python testdata/check_solutions.py` — каждое решение в отдельном процессе
+с таймаутом 5 с; решения с `os.system`/`subprocess`/записью на диск вне песочницы не
+запускаются.
 
-| Решение | Пройдено | Решение | Пройдено | Решение | Пройдено |
-|---|---|---|---|---|---|
-| s1_01 | 10/10 | s2_01 | 10/10 | s3_01 | 10/10 |
-| s1_02 | 9/10 | s2_02 | 10/10 | s3_02 | 9/10 |
-| s1_03 | 0/10 | s2_03 | 6/10 | s3_03 | 5/10 |
-| s1_04 | 0/10 | s2_04 | 6/10 | s3_04 | 2/10 |
-| s1_05 | не запускается | s2_05 | 0/10 (зависает) | s3_05 | не запускается |
-
-### Каталог кодов замечаний
-
-Предложение для согласования с Юрой (анализатор) и Ангелиной (оценщик).
-
-| Код | Severity по умолчанию | Что значит |
+| Решение | Тесты | Анализатор |
 |---|---|---|
-| `float_money` | high | деньги во `float` |
-| `eval_usage` | high | `eval`/`exec` на данных |
-| `os_command` | high | `os.system`, `subprocess` с `shell=True` |
-| `network_access` | high | обращение в сеть из решения |
-| `hardcoded_secret` | high | токен/пароль в коде |
-| `pan_in_logs` | high | полный номер карты в логах |
-| `infinite_loop` | high | цикл без выхода |
-| `wrong_result` | high | неверный результат на эталонных случаях |
-| `mutable_default` | high | изменяемый аргумент по умолчанию |
-| `silent_error` | medium/high | ошибка глушится, результат неверный |
-| `bare_except` | medium | `except:` без типа |
-| `broad_except` | medium | `except Exception` без обработки |
-| `input_mutation` | medium | изменяет входные данные |
-| `unsafe_deserialization` | medium | `pickle` и т. п. |
-| `no_input_validation` | low/medium | нет проверки входа |
-| `magic_numbers` | low/medium | константы зашиты в код |
-| `duplicated_code` | low | повтор кода |
-| `print_debug` | low | отладочный `print` |
+| s1_01_excellent | 10/10 | — |
+| s1_02_good | 9/10 | — |
+| s1_03_float | 0/10 | FLOAT_MONEY |
+| s1_04_no_limits | 0/10 | FLOAT_MONEY, BARE_EXCEPT |
+| s1_05_dangerous | не запускается | EVAL_EXEC, FLOAT_MONEY, NO_INPUT_VALIDATION |
+| s1_06_long_function | 10/10 | LONG_FUNCTION |
+| s1_07_missing_return | 9/10 | MISSING_RETURN |
+| s2_01_excellent | 10/10 | — (ложное NO_INPUT_VALIDATION) |
+| s2_02_good | 10/10 | — (ложное NO_INPUT_VALIDATION) |
+| s2_03_no_luhn | 6/10 | NO_INPUT_VALIDATION |
+| s2_04_logs_pan | 6/10 | NO_INPUT_VALIDATION |
+| s2_05_broken | 0/10 (зависает) | BARE_EXCEPT, NO_INPUT_VALIDATION |
+| s2_06_unused_variable | 10/10 | UNUSED_VARIABLE |
+| s2_07_unused_and_missing_return | 8/10 | UNUSED_VARIABLE, MISSING_RETURN |
+| s3_01_excellent | 10/10 | — (ложное DEEP_NESTING) |
+| s3_02_good | 9/10 | — (ложное DEEP_NESTING) |
+| s3_03_mutates | 5/10 | NO_INPUT_VALIDATION |
+| s3_04_float_hardcode | 2/10 | FLOAT_MONEY, DEEP_NESTING, BARE_EXCEPT |
+| s3_05_dangerous | не запускается | EVAL_EXEC, NO_INPUT_VALIDATION |
+| s3_06_deep_nesting | 10/10 | DEEP_NESTING |
+
+### Коды в `expected_findings` (анализатор)
+
+`FLOAT_MONEY`, `BARE_EXCEPT`, `EVAL_EXEC`, `NO_INPUT_VALIDATION`, `LONG_FUNCTION`,
+`UNUSED_VARIABLE`, `DEEP_NESTING`, `MISSING_RETURN` — severity как у анализатора.
+
+### Коды в `expected_notes` (анализатор их не ищет)
+
+| Код | Что значит |
+|---|---|
+| `wrong_result` | неверный результат на эталонных случаях |
+| `silent_error` | ошибка глушится, результат неверный |
+| `infinite_loop` | цикл без выхода |
+| `os_command` | `os.system`, `subprocess` с `shell=True` |
+| `network_access` | обращение в сеть из решения |
+| `hardcoded_secret` | токен/пароль в коде |
+| `pan_in_logs` | полный номер карты в логах |
+| `mutable_default` | изменяемый аргумент по умолчанию |
+| `input_mutation` | изменяет входные данные |
+| `unsafe_deserialization` | `pickle` и т. п. |
+| `no_input_validation` | слабая проверка входа, которую анализатор не ловит |
+| `magic_numbers` | константы зашиты в код |
+| `duplicated_code` | повтор кода |
+| `print_debug` | отладочный `print` |
