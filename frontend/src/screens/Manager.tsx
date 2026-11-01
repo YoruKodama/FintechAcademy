@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { api } from "../api";
-import { ErrorBox, Loading, Page } from "../components";
+import { ErrorBox, Loading, Page, toneForTotal } from "../components";
 import { useAsync } from "../hooks";
 
 const STATUS_LABELS = { started: "в процессе", done: "завершено" } as const;
@@ -16,11 +16,32 @@ export default function Manager() {
   const scenarios = useAsync(() => api.listScenarios(), []);
   const attempts = useAsync(() => api.listAttempts(scenarioId), [scenarioId]);
 
+  const rows = attempts.data ?? [];
+  const scored = rows.filter((row) => row.total !== null);
+  const average = scored.length
+    ? Math.round(scored.reduce((sum, row) => sum + (row.total ?? 0), 0) / scored.length)
+    : null;
+
   return (
-    <Page title="Панель руководителя">
+    <Page title="Панель руководителя" subtitle="Прохождения сотрудников и их баллы.">
+      <div className="stats">
+        <div className="stat">
+          <div className="value">{rows.length}</div>
+          <div className="label">прохождений</div>
+        </div>
+        <div className="stat">
+          <div className="value">{scored.length}</div>
+          <div className="label">завершено</div>
+        </div>
+        <div className="stat">
+          <div className="value">{average ?? "—"}</div>
+          <div className="label">средний балл</div>
+        </div>
+      </div>
+
       <div className="toolbar">
         <label>
-          Сценарий{" "}
+          Сценарий
           <select
             value={scenarioId ?? ""}
             onChange={(event) =>
@@ -42,7 +63,7 @@ export default function Manager() {
 
       {attempts.loading && <Loading />}
       {attempts.error && <ErrorBox message={attempts.error} onRetry={attempts.reload} />}
-      {attempts.data && attempts.data.length === 0 && <p>Прохождений пока нет.</p>}
+      {attempts.data && attempts.data.length === 0 && <p className="empty">Прохождений пока нет.</p>}
       {attempts.data && attempts.data.length > 0 && (
         <table>
           <thead>
@@ -61,21 +82,18 @@ export default function Manager() {
                 <td>{row.id}</td>
                 <td>{row.scenario_title}</td>
                 <td>{formatDate(row.started_at)}</td>
-                <td>{STATUS_LABELS[row.status]}</td>
-                <td>{row.total ?? "—"}</td>
                 <td>
-                  {row.status === "done" && <a href={`#/result/${row.id}`}>Открыть</a>}
+                  <span className={`status ${row.status}`}>{STATUS_LABELS[row.status]}</span>
                 </td>
+                <td className={`score-cell ${row.total === null ? "" : `tone-${toneForTotal(row.total)}`}`}>
+                  {row.total ?? "—"}
+                </td>
+                <td>{row.status === "done" && <a href={`#/result/${row.id}`}>Открыть</a>}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      <div className="actions">
-        <a className="link" href="#/">
-          ← К списку задач
-        </a>
-      </div>
     </Page>
   );
 }
